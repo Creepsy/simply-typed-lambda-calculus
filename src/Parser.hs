@@ -14,16 +14,17 @@ import Data.Functor (($>))
 import Text.Megaparsec ((<?>), (<|>))
 import Text.Megaparsec qualified as MP
 import Text.Megaparsec.Char qualified as MP (string, char, space, space1)
-import ParseTree (ParseTree (Constant, Variable, IfExpr, Application, Abstraction), LCType (Boolean, (:->)), WithContext((:@)))
+import ParseTree (LCType (Boolean, (:->)), Positioned (Positioned), ParseTree, ParseTree' (Application, Abstraction, IfExpr, Variable, Constant))
+import Context((<@>))
 import Data.Char (isAlpha)
 
 type Parser = MP.Parsec Void String
 
-expr :: Parser (WithContext ParseTree)
+expr :: Parser (ParseTree Positioned)
 expr = application <?> "expression"
 
 
-expr' :: Parser (WithContext ParseTree)
+expr' :: Parser (ParseTree Positioned)
 expr' = abstraction 
     <|> ifExpr
     <|> bool
@@ -47,7 +48,7 @@ lcType =
             return $ left :-> right
         boolType = MP.string "Bool" $> Boolean
 
-abstraction :: Parser (WithContext ParseTree)
+abstraction :: Parser (ParseTree Positioned)
 abstraction = do
     pos <- MP.getOffset
     _ <- MP.char '\\'
@@ -62,18 +63,18 @@ abstraction = do
     _ <- MP.char '.'
     MP.space
     body <- expr
-    return $ Abstraction v (t :@ typePos) body :@ pos
+    return $ Abstraction v (t <@> typePos) body <@> pos
     <?> "abstraction"
 
-application :: Parser (WithContext ParseTree)
+application :: Parser (ParseTree Positioned)
 application = do
-    op@(_ :@ pos) <- expr'
+    op@(Positioned _ pos) <- expr'
     MP.space
     operands <- MP.many (expr' <* MP.space)
-    return $ foldl (\ o v -> Application o v :@ pos) op operands
+    return $ foldl (\ o v -> Application o v <@> pos) op operands
     <?> "application" 
 
-ifExpr :: Parser (WithContext ParseTree)
+ifExpr :: Parser (ParseTree Positioned)
 ifExpr = do
     pos <- MP.getOffset
     _ <- MP.string "if"
@@ -87,21 +88,21 @@ ifExpr = do
     _ <- MP.string "else"
     MP.space1
     onFalse <- expr'
-    return $ IfExpr cond onTrue onFalse :@ pos
+    return $ IfExpr cond onTrue onFalse <@> pos
     <?> "if expression"
 
-var :: Parser (WithContext ParseTree)
+var :: Parser (ParseTree Positioned)
 var = do
     pos <- MP.getOffset
     identifier <- MP.takeWhile1P (Just "alphabetic character") isAlpha
-    return $ Variable identifier :@ pos
+    return $ Variable identifier <@> pos
     <?> "variable"  
 
-bool :: Parser (WithContext ParseTree)
+bool :: Parser (ParseTree Positioned)
 bool = do
     pos <- MP.getOffset
     value <- MP.string "true" $> True <|> MP.string "false" $> False
-    return $ Constant value :@ pos
+    return $ Constant value <@> pos
     <?> "boolean"
 
 withParenthesis :: Parser a -> Parser a
