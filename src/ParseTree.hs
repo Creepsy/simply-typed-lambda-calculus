@@ -1,5 +1,6 @@
 {-# LANGUAGE UndecidableInstances #-}
 module ParseTree (
+    Offset,
     LCType(..),
     ParseTree'(..),
     ParseTree,
@@ -11,12 +12,12 @@ import Context (Context(..))
 
 type Offset = Int
 
-data LCType = Boolean | LCType :-> LCType deriving (Show)
+data LCType = Boolean | LCType :-> LCType deriving (Show, Eq, Ord)
 data ParseTree' w = Constant Bool
     | Variable String
     | IfExpr {condition :: w (ParseTree' w), onTrue :: w (ParseTree' w), onFalse :: w (ParseTree' w)}
     | Application (w (ParseTree' w)) (w (ParseTree' w))
-    | Abstraction {var :: w (ParseTree' w), boundType :: w LCType, body :: w (ParseTree' w)}
+    | Abstraction {var :: (String, LCType), body :: w (ParseTree' w)}
 type ParseTree w = w (ParseTree' w)
 
 data Positioned a = Positioned a Offset
@@ -43,4 +44,4 @@ instance (Context w b, Show (w (ParseTree' w)), Show (w LCType)) => Show (ParseT
     show (Variable v) = v
     show (IfExpr cond oT oF) = "if {" ++ show cond ++ ", " ++ show oT ++ ", " ++ show oF ++ "}" 
     show (Application a b) = "apply " ++ show a ++ " to " ++ show b
-    show (Abstraction v vT body) = show v ++ ":" ++ show vT ++ " -> " ++ show body
+    show (Abstraction (v, vT) body) = show v ++ ":" ++ show vT ++ " -> " ++ show body

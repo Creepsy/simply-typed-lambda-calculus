@@ -1,4 +1,5 @@
 module Parser (
+    ErrorBundle,
     Parser,
     expr,
     lcType,
@@ -9,7 +10,6 @@ module Parser (
     bool
 ) where
 
-import Data.Void (Void)
 import Data.Functor (($>))
 import Text.Megaparsec ((<?>), (<|>))
 import Text.Megaparsec qualified as MP
@@ -17,8 +17,10 @@ import Text.Megaparsec.Char qualified as MP (string, char, space, space1)
 import ParseTree (LCType (Boolean, (:->)), Positioned (Positioned), ParseTree, ParseTree' (Application, Abstraction, IfExpr, Variable, Constant))
 import Context((<@>))
 import Data.Char (isAlpha)
+import TypeError (LCError)
 
-type Parser = MP.Parsec Void String
+type ErrorBundle = MP.ParseErrorBundle String LCError
+type Parser = MP.Parsec LCError String
 
 expr :: Parser (ParseTree Positioned)
 expr = application <?> "expression"
@@ -53,17 +55,16 @@ abstraction = do
     pos <- MP.getOffset
     _ <- MP.char '\\'
     MP.space
-    v <- var
+    v <- ident
     MP.space
     _ <- MP.char ':'
     MP.space
-    typePos <- MP.getOffset
     t <- lcType
     MP.space
     _ <- MP.char '.'
     MP.space
     body <- expr
-    return $ Abstraction v (t <@> typePos) body <@> pos
+    return $ Abstraction (v, t) body <@> pos
     <?> "abstraction"
 
 application :: Parser (ParseTree Positioned)
@@ -94,9 +95,12 @@ ifExpr = do
 var :: Parser (ParseTree Positioned)
 var = do
     pos <- MP.getOffset
-    identifier <- MP.takeWhile1P (Just "alphabetic character") isAlpha
+    identifier <- ident
     return $ Variable identifier <@> pos
     <?> "variable"  
+
+ident :: Parser String
+ident = MP.takeWhile1P (Just "alphabetic character") isAlpha <?> "identifier"
 
 bool :: Parser (ParseTree Positioned)
 bool = do

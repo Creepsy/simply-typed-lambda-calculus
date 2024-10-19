@@ -64,13 +64,16 @@ executable simply-typed-lambda-calculus
     other-modules:    Parser
                       ParseTree
                       Context
+                      TypeChecker
+                      TypeError
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.17.2.1,
-                      megaparsec ^>= 9.6.1
+                      megaparsec ^>= 9.6.1,
+                      containers ^>= 0.7
 
     -- Directories containing source files.
     hs-source-dirs:   src
